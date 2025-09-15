@@ -1,4 +1,4 @@
-git clone https://github.com/MinhTrungDev-2004/TLU-FaceAttendance.git 
+git clone https://github.com/MinhTrungDev-2004/tlu_face_attendance.git
 cd TLU-FaceAttendance 
 git init git 
 checkout -b TrungDevd =>tên theo kiểu này nhé ! 

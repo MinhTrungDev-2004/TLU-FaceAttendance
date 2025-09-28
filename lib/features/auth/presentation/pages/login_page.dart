@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:tlu_face_attendance/routes/app_routes.dart';
 void main() {
   runApp(const MyApp());
 }
@@ -36,24 +37,10 @@ class _LoginPageState extends State<LoginPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Phần header
               Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFFe6eef9), Color(0xFFFFFFFF)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(40),
-                  ),
-                ),
                 child: Column(
                   children: [
                     const SizedBox(height: 30),
-                    // Icon mũ tốt nghiệp
                     Icon(
                       Icons.school,
                       size: 100,
@@ -63,10 +50,7 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-
-              // Text "Đăng nhập"
               const Text(
                 "Đăng nhập",
                 style: TextStyle(
@@ -77,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 30),
 
-              // Ô nhập tài khoản
+              // Tài khoản
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: TextField(
@@ -92,7 +76,7 @@ class _LoginPageState extends State<LoginPage> {
               ),
               const SizedBox(height: 20),
 
-              // Ô nhập mật khẩu
+              // Mật khẩu
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: TextField(
@@ -138,7 +122,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 20),
 
-              // Nút đăng nhập
+              // Đăng Nhập
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: SizedBox(
@@ -152,7 +136,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                     onPressed: () {
-                      // Xử lý đăng nhập
+                      Navigator.pushReplacementNamed(context, AppRoutes.lecturer);
+
                     },
                     child: const Text(
                       "Đăng nhập",

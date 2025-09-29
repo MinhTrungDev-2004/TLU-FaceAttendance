@@ -1,23 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:tlu_face_attendance/routes/app_routes.dart';
 
 class LecturerBottomNav extends StatelessWidget {
   final int currentIndex;
-  final ValueChanged<int> onTap;
 
   const LecturerBottomNav({
     super.key,
     required this.currentIndex,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return BottomNavigationBar(
       currentIndex: currentIndex,
-      onTap: onTap,
       type: BottomNavigationBarType.fixed,
       selectedItemColor: const Color(0xFF1675FF),
       unselectedItemColor: Colors.black54,
+      onTap: (index) {
+        switch (index) {
+          case 0:
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.lecturer, // sửa lại cho khớp
+                  (route) => false,
+            );
+            break;
+          case 1:
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.scheduleLecturer,
+                  (route) => false,
+            );
+            break;
+          case 2:
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.attendanceLecturer,
+                  (route) => false,
+            );
+            break;
+          case 3:
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.reportLecturer,
+                  (route) => false,
+            );
+            break;
+          case 4:
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.profileLecturer,
+                  (route) => false,
+            );
+            break;
+        }
+      },
       items: const [
         BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Trang chủ'),
         BottomNavigationBarItem(icon: Icon(Icons.schedule_outlined), label: 'Lịch dạy'),

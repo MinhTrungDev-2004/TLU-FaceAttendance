@@ -1,14 +1,13 @@
 class AppRoutes {
-  // Login
+  // Auth
   static const String login = '/login';
   static const String register = '/register';
   static const String home = '/home';
 
-  // Giảng viên
-  static const String lecturer = '/trang-chủ-giảng-viên';
-  static const String schedule = '/lịch-dạy-giảng-viên';
-  static const String attendance = '/điểm-danh-giảng-viên';
-  static const String report = '/báo-cáo-giảng-viên';
-  static const String profile = '/thông-tin-giảng-viên';
-
+  // Lecturer
+  static const String lecturer = '/giang-vien/trang-chu';
+  static const String scheduleLecturer = '/giang-vien/lich-day';
+  static const String attendanceLecturer = '/giang-vien/diem-danh';
+  static const String reportLecturer = '/giang-vien/bao-cao';
+  static const String profileLecturer = '/giang-vien/thong-tin';
 }

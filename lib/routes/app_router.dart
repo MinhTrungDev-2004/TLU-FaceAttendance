@@ -12,17 +12,24 @@ import 'app_routes.dart';
 class AppRouter {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
+    // Auth
       case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => const LoginPage());
-
       case AppRoutes.register:
         return MaterialPageRoute(builder: (_) => const RegisterPage());
 
-      // Giảng Viên
+    // Lecturer
       case AppRoutes.lecturer:
         return MaterialPageRoute(builder: (_) => const HomePage());
-      case AppRoutes.attendance:
+      case AppRoutes.scheduleLecturer:
+        return MaterialPageRoute(builder: (_) => const SchedulePage());
+      case AppRoutes.attendanceLecturer:
         return MaterialPageRoute(builder: (_) => const AttendancePage());
+      case AppRoutes.reportLecturer:
+        return MaterialPageRoute(builder: (_) => const ReportPage());
+      case AppRoutes.profileLecturer:
+        return MaterialPageRoute(builder: (_) => const ProfilePage());
+
       default:
         return MaterialPageRoute(
           builder: (_) => const Scaffold(
@@ -32,4 +39,3 @@ class AppRouter {
     }
   }
 }
-

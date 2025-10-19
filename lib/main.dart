@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'routes/app_router.dart';
-import 'routes/app_routes.dart';
-import 'package:tlu_face_attendance/features/auth/presentation/pages/login_page.dart';
+import 'package:tlu_face_attendance/web/routes/web_router.dart';
+import 'package:tlu_face_attendance/web/routes/web_routes.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,10 +15,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
 
       // route mặc định khi khởi động app
-      initialRoute: AppRoutes.login,
+      initialRoute: WebRoutes.login,
 
       // gọi router
-      onGenerateRoute: AppRouter.generateRoute,
+      onGenerateRoute: WebRouter.generateRoute,
     );
   }
 }

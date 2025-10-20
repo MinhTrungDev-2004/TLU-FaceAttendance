@@ -6,6 +6,7 @@ import 'package:tlu_face_attendance/web/lecturer/pages/schedule_page.dart';
 import 'package:tlu_face_attendance/web/lecturer/pages/attendance_page.dart';
 import 'package:tlu_face_attendance/web/lecturer/pages/report_page.dart';
 import 'package:tlu_face_attendance/web/lecturer/pages/profile_page.dart';
+import 'package:tlu_face_attendance/mobile/student/pages/home/home_page.dart';
 import 'web_routes.dart';
 
 class WebRouter {
@@ -16,6 +17,10 @@ class WebRouter {
         return MaterialPageRoute(builder: (_) => const LoginPage());
       case WebRoutes.register:
         return MaterialPageRoute(builder: (_) => const RegisterPage());
+
+    // Mobile Student
+      case WebRoutes.studentHome:
+        return MaterialPageRoute(builder: (_) => const HomeScreen());
 
     // Lecturer
       case WebRoutes.lecturer:

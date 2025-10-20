@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:tlu_face_attendance/web/routes/web_routes.dart';
+import 'package:tlu_face_attendance/mobile/student/pages/register_face/first_time_face_registration.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,8 +14,11 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -118,16 +124,23 @@ class _LoginPageState extends State<LoginPage> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.pushReplacementNamed(context, WebRoutes.lecturer);
-                    },
-                    child: const Text(
-                      "Đăng nhập",
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.white,
-                      ),
-                    ),
+                    onPressed: _isLoading ? null : _handleLogin,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                        : const Text(
+                            "Đăng nhập",
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -138,5 +151,78 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleLogin() async {
+    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Đăng nhập với Firebase Auth
+      final UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: _usernameController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      final User? user = userCredential.user;
+      if (user != null) {
+        // Kiểm tra xem user đã đăng ký khuôn mặt chưa
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        
+        if (doc.exists && doc.data()?['hasRegisteredFace'] == true) {
+          // Đã đăng ký khuôn mặt, chuyển đến trang chính
+          Navigator.pushReplacementNamed(context, WebRoutes.studentHome);
+        } else {
+          // Chưa đăng ký khuôn mặt, chuyển đến trang đăng ký
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => FirstTimeFaceRegistration(
+                userId: user.uid,
+                userName: user.displayName ?? _usernameController.text.trim(),
+              ),
+            ),
+          );
+        }
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Đăng nhập thất bại';
+      switch (e.code) {
+        case 'user-not-found':
+          errorMessage = 'Tài khoản không tồn tại';
+          break;
+        case 'wrong-password':
+          errorMessage = 'Mật khẩu không đúng';
+          break;
+        case 'invalid-email':
+          errorMessage = 'Email không hợp lệ';
+          break;
+        case 'user-disabled':
+          errorMessage = 'Tài khoản đã bị vô hiệu hóa';
+          break;
+        default:
+          errorMessage = 'Lỗi: ${e.message}';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: $e')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 }

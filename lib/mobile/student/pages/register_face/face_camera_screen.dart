@@ -1,17 +1,14 @@
-import 'dart:io';
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class FaceCameraScreen extends StatefulWidget {
-  final List<CameraDescription> cameras;
-  final Function(String) onFaceCaptured;
-
-  const FaceCameraScreen({
-    super.key,
-    required this.cameras,
-    required this.onFaceCaptured,
-  });
+  const FaceCameraScreen({super.key});
 
   @override
   State<FaceCameraScreen> createState() => _FaceCameraScreenState();
@@ -19,333 +16,312 @@ class FaceCameraScreen extends StatefulWidget {
 
 class _FaceCameraScreenState extends State<FaceCameraScreen> {
   CameraController? _controller;
-  bool _isInitialized = false;
+  bool _isCameraInitialized = false;
   bool _isCapturing = false;
-  String? _capturedImagePath;
+  bool _isDetecting = false;
+
+  late final FaceDetector _faceDetector;
+  int _currentStep = 0; // 0 = nhìn thẳng, 1 = trái, 2 = phải
+  int _faceStableCount = 0;
+  final int _requiredStableFrames = 8; // ~2 giây
+  final List<String> _savedImages = [];
+
+  bool _isFaceDetected = false;
+  String _instructionText = "Đưa khuôn mặt vào khung hình";
 
   @override
   void initState() {
     super.initState();
-    _initializeCamera();
+    _initCamera();
+    _faceDetector = FaceDetector(
+      options: FaceDetectorOptions(
+        performanceMode: FaceDetectorMode.accurate,
+        enableLandmarks: true,
+      ),
+    );
   }
 
-  Future<void> _initializeCamera() async {
-    if (widget.cameras.isEmpty) return;
+  Future<void> _initCamera() async {
+    final statusCamera = await Permission.camera.request();
+    final statusStorage = await Permission.storage.request();
 
-    _controller = CameraController(
-      widget.cameras.first,
-      ResolutionPreset.high,
-      enableAudio: false,
+    if (!statusCamera.isGranted || !statusStorage.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cần quyền Camera và Storage để tiếp tục')),
+      );
+      Navigator.pop(context);
+      return;
+    }
+
+    final cameras = await availableCameras();
+    if (cameras.isEmpty) return;
+
+    final frontCamera = cameras.firstWhere(
+      (cam) => cam.lensDirection == CameraLensDirection.front,
+      orElse: () => cameras.first,
     );
 
+    _controller = CameraController(frontCamera, ResolutionPreset.medium, enableAudio: false);
+    await _controller!.initialize();
+
+    if (!mounted) return;
+    setState(() => _isCameraInitialized = true);
+
+    _controller!.startImageStream(_processCameraImage);
+  }
+
+  Future<void> _processCameraImage(CameraImage image) async {
+    if (_isDetecting || _isCapturing) return;
+    _isDetecting = true;
+
     try {
-      await _controller!.initialize();
-      setState(() {
-        _isInitialized = true;
-      });
+      final camera = _controller!.description;
+      final rotation =
+          InputImageRotationValue.fromRawValue(camera.sensorOrientation) ??
+              InputImageRotation.rotation0deg;
+
+      final allBytes = <int>[];
+      for (var plane in image.planes) allBytes.addAll(plane.bytes);
+      final bytes = Uint8List.fromList(allBytes);
+
+      final inputImage = InputImage.fromBytes(
+        bytes: bytes,
+        metadata: InputImageMetadata(
+          size: Size(image.width.toDouble(), image.height.toDouble()),
+          rotation: rotation,
+          format: InputImageFormat.nv21,
+          bytesPerRow: image.planes.first.bytesPerRow,
+        ),
+      );
+
+      final faces = await _faceDetector.processImage(inputImage);
+
+      if (faces.isNotEmpty) {
+        _isFaceDetected = true;
+        final face = faces.first;
+        final angleY = face.headEulerAngleY ?? 0;
+
+        bool isCorrectPose = false;
+        if (_currentStep == 0 && angleY.abs() < 10) isCorrectPose = true;
+        else if (_currentStep == 1 && angleY < -15 && angleY > -40) isCorrectPose = true;
+        else if (_currentStep == 2 && angleY > 15 && angleY < 40) isCorrectPose = true;
+
+        if (isCorrectPose) {
+          _faceStableCount++;
+          _instructionText = "Giữ mặt ổn định...";
+          if (_faceStableCount >= _requiredStableFrames) {
+            await _captureAndSaveImage();
+            _faceStableCount = 0;
+          }
+        } else {
+          _faceStableCount = 0;
+          _instructionText = "Đưa khuôn mặt vào khung hình đúng hướng";
+        }
+      } else {
+        _isFaceDetected = false;
+        _faceStableCount = 0;
+        _instructionText = "Đưa khuôn mặt vào khung hình";
+      }
+
+      if (mounted) setState(() {});
     } catch (e) {
-      print('Error initializing camera: $e');
+      debugPrint("Lỗi nhận diện khuôn mặt: $e");
+    } finally {
+      _isDetecting = false;
+      await Future.delayed(const Duration(milliseconds: 250));
+    }
+  }
+
+  Future<void> _captureAndSaveImage() async {
+    if (_controller == null || !_controller!.value.isInitialized) return;
+    if (_currentStep >= 3) return;
+
+    setState(() => _isCapturing = true);
+
+    try {
+      final XFile file = await _controller!.takePicture();
+
+      // Lưu ảnh vào Gallery (Android 7+)
+      final directory = await getTemporaryDirectory();
+      final newPath = '${directory.path}/face_step${_currentStep + 1}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final newFile = await File(file.path).copy(newPath);
+
+      
+
+     
+
+      _currentStep++;
+      if (_currentStep == 1) _instructionText = "Bước 2/3: Nhìn sang trái";
+      else if (_currentStep == 2) _instructionText = "Bước 3/3: Nhìn sang phải";
+      else if (_currentStep == 3) {
+        _instructionText = "Hoàn tất đăng ký khuôn mặt ✅";
+        await _controller?.stopImageStream();
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const SuccessScreen()),
+          );
+        }
+      }
+
+      if (mounted) setState(() {});
+    } catch (e) {
+      debugPrint("Lỗi khi chụp ảnh: $e");
+    } finally {
+      setState(() => _isCapturing = false);
     }
   }
 
   @override
   void dispose() {
     _controller?.dispose();
+    _faceDetector.close();
     super.dispose();
   }
 
-  Future<void> _capturePhoto() async {
-    if (!_isInitialized || _controller == null || _isCapturing) return;
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final topPadding = MediaQuery.of(context).padding.top;
 
-    setState(() {
-      _isCapturing = true;
-    });
-
-    try {
-      final Directory appDir = await getApplicationDocumentsDirectory();
-      final String fileName = 'face_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final String filePath = '${appDir.path}/$fileName';
-
-      final XFile photo = await _controller!.takePicture();
-      await photo.saveTo(filePath);
-
-      setState(() {
-        _capturedImagePath = filePath;
-        _isCapturing = false;
-      });
-
-      // Show preview dialog
-      _showPreviewDialog(filePath);
-    } catch (e) {
-      setState(() {
-        _isCapturing = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi chụp ảnh: $e')),
-      );
-    }
-  }
-
-  void _showPreviewDialog(String imagePath) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xem trước ảnh'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey),
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          Container(height: topPadding, color: const Color(0xFF1470E2)),
+          Container(
+            width: screenWidth,
+            height: 60,
+            decoration: const BoxDecoration(
+              color: Color(0xFF1470E2),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.file(
-                  File(imagePath),
-                  fit: BoxFit.cover,
+              boxShadow: [
+                BoxShadow(color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+              ],
+            ),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 24),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
-              ),
+                const Expanded(
+                  child: Text(
+                    'Đăng ký khuôn mặt',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Bạn có hài lòng với ảnh này không?',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Delete the file if user doesn't like it
-              File(imagePath).delete();
-            },
-            child: const Text('Chụp lại'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              widget.onFaceCaptured(imagePath);
-              Navigator.pop(context, imagePath);
-            },
-            child: const Text('Xác nhận'),
+          Expanded(
+            child: _isCameraInitialized
+                ? Container(
+                    alignment: Alignment.topCenter,
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 300,
+                              height: 400,
+                              color: Colors.black,
+                              child: AspectRatio(
+                                aspectRatio: _controller!.value.aspectRatio,
+                                child: CameraPreview(_controller!),
+                              ),
+                            ),
+                            CustomPaint(
+                              size: const Size(250, 330),
+                              painter: FaceFramePainter(
+                                isDetected: _isFaceDetected,
+                                isCaptured: _currentStep > 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 15),
+                        Text(
+                          _instructionText,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (_savedImages.isNotEmpty)
+                          Text(
+                            "Đã lưu ${_savedImages.length}/3 ảnh",
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                      ],
+                    ),
+                  )
+                : const Center(child: CircularProgressIndicator(color: Colors.blue)),
           ),
         ],
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenSize = MediaQuery.of(context).size;
-    final isTablet = screenSize.width > 600;
-
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Chụp ảnh khuôn mặt',
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
-      body: _isInitialized
-          ? Stack(
-              children: [
-                // Camera preview
-                Positioned.fill(
-                  child: CameraPreview(_controller!),
-                ),
-
-                // Face guide overlay
-                Positioned.fill(
-                  child: CustomPaint(
-                    painter: FaceGuidePainter(),
-                  ),
-                ),
-
-                // Instructions
-                Positioned(
-                  top: 20,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Đặt khuôn mặt trong khung oval và nhấn nút chụp',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-
-                // Capture button
-                Positioned(
-                  bottom: 50,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: GestureDetector(
-                      onTap: _isCapturing ? null : _capturePhoto,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _isCapturing ? Colors.grey : Colors.white,
-                          border: Border.all(
-                            color: _isCapturing ? Colors.grey : Colors.white,
-                            width: 4,
-                          ),
-                        ),
-                        child: _isCapturing
-                            ? const Center(
-                                child: CircularProgressIndicator(
-                                  color: Colors.black,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(
-                                Icons.camera_alt,
-                                color: Colors.black,
-                                size: 32,
-                              ),
-                      ),
-                    ),
-                  ),
-                ),
-
-                // Tips
-                Positioned(
-                  bottom: 150,
-                  left: 20,
-                  right: 20,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black54,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      '💡 Mẹo: Đảm bảo khuôn mặt được chiếu sáng tốt và nhìn thẳng vào camera',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ],
-            )
-          : const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    'Đang khởi tạo camera...',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
 }
 
-class FaceGuidePainter extends CustomPainter {
+class FaceFramePainter extends CustomPainter {
+  final bool isDetected;
+  final bool isCaptured;
+
+  FaceFramePainter({this.isDetected = false, this.isCaptured = false});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3;
+      ..color = isCaptured
+          ? Colors.green
+          : isDetected
+              ? Colors.blueAccent
+              : Colors.white
+      ..strokeWidth = isCaptured ? 6 : 3
+      ..style = PaintingStyle.stroke;
 
-    // Draw oval face guide
-    final center = Offset(size.width / 2, size.height / 2);
-    final ovalRect = Rect.fromCenter(
-      center: center,
-      width: size.width * 0.6,
-      height: size.height * 0.4,
+    final rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: size.width,
+      height: size.height,
     );
-
-    canvas.drawOval(ovalRect, paint);
-
-    // Draw corner guides
-    final cornerLength = 30.0;
-    final cornerPaint = Paint()
-      ..color = Colors.green
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
-
-    // Top-left corner
-    canvas.drawLine(
-      Offset(ovalRect.left, ovalRect.top + cornerLength),
-      Offset(ovalRect.left, ovalRect.top),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(ovalRect.left, ovalRect.top),
-      Offset(ovalRect.left + cornerLength, ovalRect.top),
-      cornerPaint,
-    );
-
-    // Top-right corner
-    canvas.drawLine(
-      Offset(ovalRect.right - cornerLength, ovalRect.top),
-      Offset(ovalRect.right, ovalRect.top),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(ovalRect.right, ovalRect.top),
-      Offset(ovalRect.right, ovalRect.top + cornerLength),
-      cornerPaint,
-    );
-
-    // Bottom-left corner
-    canvas.drawLine(
-      Offset(ovalRect.left, ovalRect.bottom - cornerLength),
-      Offset(ovalRect.left, ovalRect.bottom),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(ovalRect.left, ovalRect.bottom),
-      Offset(ovalRect.left + cornerLength, ovalRect.bottom),
-      cornerPaint,
-    );
-
-    // Bottom-right corner
-    canvas.drawLine(
-      Offset(ovalRect.right - cornerLength, ovalRect.bottom),
-      Offset(ovalRect.right, ovalRect.bottom),
-      cornerPaint,
-    );
-    canvas.drawLine(
-      Offset(ovalRect.right, ovalRect.bottom),
-      Offset(ovalRect.right, ovalRect.bottom - cornerLength),
-      cornerPaint,
-    );
+    canvas.drawOval(rect, paint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant FaceFramePainter oldDelegate) => true;
+}
+
+class SuccessScreen extends StatelessWidget {
+  const SuccessScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.check_circle, color: Colors.green, size: 100),
+            SizedBox(height: 20),
+            Text(
+              "Đăng ký khuôn mặt thành công!",
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

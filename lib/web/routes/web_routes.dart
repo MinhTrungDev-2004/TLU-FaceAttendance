@@ -4,6 +4,9 @@ class WebRoutes {
   static const String register = '/register';
   static const String home = '/home';
 
+  // Mobile Student
+  static const String studentHome = '/sinh-vien/trang-chu';
+
   // Lecturer
   static const String lecturer = '/giang-vien/trang-chu';
   static const String scheduleLecturer = '/giang-vien/lich-day';

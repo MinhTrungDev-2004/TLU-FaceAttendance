@@ -172,7 +172,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
     final List<DataColumn> columns = [
       DataColumn(
         label: Container( // Dùng Container
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Checkbox(
             value: _selectAll,
             onChanged: (val) {
@@ -188,97 +188,97 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Thứ/Ngày', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Thời gian', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Số tiết\nLT', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Số tiết\nTH/TN', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Tên bài', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Hình thức', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Góp ý về \n cơ sở vật chất', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Giảng viên 1', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Giảng viên 2', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Giảng viên\ndạy thay', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Duyệt dạy\nthay', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Phòng học', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Ngày dạy bù', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Tổng số\nSV', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('Số SV\nvắng mặt', textAlign: TextAlign.center),
         ),
       ),
       DataColumn(
         label: Container(
-          alignment: Alignment.center, // Căn giữa
+          alignment: Alignment.center,
           child: Text('#', textAlign: TextAlign.center),
         ),
       ),
@@ -290,8 +290,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
       final sessionControllers = _controllers[id]!;
 
       return DataRow(
-        selected: session['selected'],
-        // Căn giữa nội dung ô (Giữ nguyên)
+        selected: (session['selected'] as bool?) ?? false,
         cells: [
           DataCell(
             Center(
@@ -323,8 +322,8 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
           DataCell(Center(child: _buildTextField(sessionControllers['lecturer2']!, width: 100))), // Sử dụng controller
           DataCell(Center(child: _buildTextField(sessionControllers['subLecturer']!, width: 100))), // Sử dụng controller
           DataCell(Center(child: _buildTextField(sessionControllers['subApproved']!, width: 100))), // Sử dụng controller
-          DataCell(Center(child: Text(session['room']))),
-          DataCell(Center(child: _buildTextField(TextEditingController(text: session['makeupDay']), width: 100))),
+          DataCell(Center(child: Text('${session['room'] ?? ''}'))),
+          DataCell(Center(child: _buildTextField(TextEditingController(text: (session['makeupDay'] ?? '').toString()), width: 100))),
           DataCell(Center(child: Text(session['totalStudents'].toString()))),
           DataCell(Center(child: _buildTextField(sessionControllers['absent']!, width: 60))),
           DataCell(Center(child: _buildActionButtons(session))),
@@ -358,7 +357,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
-        textAlign: TextAlign.center, // Căn giữa văn bản
+        textAlign: TextAlign.center,
         decoration: const InputDecoration(
           border: OutlineInputBorder(),
           contentPadding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -374,7 +373,7 @@ class _ClassDetailPageState extends State<ClassDetailPage> {
       width: width,
       child: DropdownButtonFormField<String>(
         initialValue: session['format'],
-        alignment: Alignment.center, // Căn giữa lựa chọn
+        alignment: Alignment.center,
         items: ['Trực tuyến', 'Trực tiếp tại']
             .map((label) => DropdownMenuItem(
           value: label,

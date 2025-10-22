@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "189620420007",
+    "project_id": "btlandroid-b2319",
+    "storage_bucket": "btlandroid-b2319.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:189620420007:android:49128e335d394b71150a82",
+        "android_client_info": {
+          "package_name": "com.example.tlu_face_attendance"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDbsRtzfRTmaaoBL0XOoD0Vfo1hH0A16wA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
